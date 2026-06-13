@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualsier | Smart Job Tracker & Financial Planner</title>
+    <meta name="description" content="Manage your tasks, track income per job, oversee multiple accounts, and budget for wishlist items with automatic balance updates and analytics.">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Visualsier">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF for Professional PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Welcome Screen (Shown if no accounts exist) -->
+    <div id="welcome-screen" class="welcome-screen no-print">
+        <div class="welcome-card">
+            <div class="welcome-logo">
+                <i data-lucide="activity" class="logo-icon-large"></i>
+            </div>
+            <h2>Welcome to Visualsier</h2>
+            <p class="welcome-subtitle">Smart Job Tracker & Financial Planner</p>
+            <p class="welcome-description">Create your first password-protected account below to start tracking your work earnings, expenses, and wishlist targets.</p>
+            
+            <form id="welcome-create-account-form" class="styled-form">
+                <div class="form-group">
+                    <label for="welcome-account-name">Account Name</label>
+                    <input type="text" id="welcome-account-name" placeholder="E.g., Personal Account, Side Hustles" required>
+                </div>
+                <div class="form-group">
+                    <label for="welcome-account-initial">Initial Balance (₹)</label>
+                    <input type="number" id="welcome-account-initial" step="0.01" min="0" value="0.00" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="welcome-account-password">Password (Compulsory)</label>
+                        <input type="password" id="welcome-account-password" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="welcome-account-confirm">Confirm Password</label>
+                        <input type="password" id="welcome-account-confirm" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <button type="submit" class="action-btn primary full-width" style="margin-top: 10px;">
+                    <i data-lucide="plus-circle"></i> Create Account & Launch Dashboard
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application Container (Hidden if no accounts exist) -->
+    <div class="app-container no-print" id="main-app-container" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo">
+                    <i data-lucide="activity" class="logo-icon"></i>
+                </div>
+                <h1>Visualsier</h1>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-tab="dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-btn" data-tab="tasks">
+                    <i data-lucide="check-square"></i>
+                    <span>Task Earnings</span>
+                </button>
+                <button class="nav-btn" data-tab="wishlist">
+                    <i data-lucide="shopping-bag"></i>
+                    <span>Wishlist</span>
+                </button>
+                <button class="nav-btn" data-tab="history">
+                    <i data-lucide="history"></i>
+                    <span>History Logs</span>
+                </button>
+            </nav>
+
+            <div class="install-app-box" id="install-app-section" style="display: none;">
+                <button class="action-btn install-app full-width" id="install-app-btn">
+                    <i data-lucide="smartphone"></i> Install App
+                </button>
+                <p class="card-subtext" style="text-align: center; margin-top: 6px;">Works on Android & Desktop</p>
+            </div>
+
+            <div class="account-selector-box">
+                <div class="selector-header">
+                    <span>Active Account</span>
+                    <button id="add-account-btn" title="Add Account">
+                        <i data-lucide="plus-circle"></i>
+                    </button>
+                </div>
+                <select id="active-account-select" class="styled-select">
+                    <!-- Loaded dynamically -->
+                </select>
+                <div class="net-worth-display">
+                    <span class="label">Total Net Worth</span>
+                    <span class="value" id="net-worth-amount">₹0.00</span>
+                </div>
+                <button class="action-btn secondary small full-width" id="delete-account-btn" style="margin-top: 5px; color: var(--accent-danger); border-color: rgba(244, 63, 94, 0.2);">
+                    <i data-lucide="trash-2"></i> Delete Account
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="welcome-msg">
+                    <h2 id="greeting">Welcome back!</h2>
+                    <p>Track your hard work and watch your savings grow.</p>
+                </div>
+                <div class="quick-action-bar">
+                    <button class="action-btn primary" id="quick-task-btn">
+                        <i data-lucide="plus"></i> Log Task
+                    </button>
+                    <button class="action-btn secondary" id="quick-expense-btn">
+                        <i data-lucide="minus"></i> Log Expense
+                    </button>
+                    <button class="action-btn accent" id="download-details-topbar-btn" title="Download or print account statement">
+                        <i data-lucide="download"></i> Download Account
+                    </button>
+                    <button class="action-btn accent-gold" id="download-wishlist-topbar-btn" title="Download or print wishlist report">
+                        <i data-lucide="heart"></i> Download Wishlist
+                    </button>
+                </div>
+            </header>
+
+            <!-- Tab Content: Dashboard -->
+            <section id="tab-dashboard" class="tab-pane active">
+                <div class="stats-grid">
+                    <div class="stat-card balance">
+                        <div class="card-icon"><i data-lucide="wallet"></i></div>
+                        <div class="card-data">
+                            <span class="card-label">Account Balance</span>
+                            <h3 id="stat-active-balance">₹0.00</h3>
+                            <span class="card-subtext" id="stat-active-name">Personal Account</span>
+                        </div>
+                        <button class="action-btn primary small get-details-btn" id="get-details-btn" title="Download statement PDF / Print details">
+                            <i data-lucide="file-down"></i> Get Details
+                        </button>
+                    </div>
+                    <div class="stat-card income">
+                        <div class="card-icon"><i data-lucide="trending-up"></i></div>
+                        <div class="card-data">
+                            <span class="card-label">Total Earnings</span>
+                            <h3 id="stat-total-earnings">₹0.00</h3>
+                            <span class="card-subtext">Cumulative income</span>
+                        </div>
+                    </div>
+                    <div class="stat-card expense">
+                        <div class="card-icon"><i data-lucide="trending-down"></i></div>
+                        <div class="card-data">
+                            <span class="card-label">Total Expenses</span>
+                            <h3 id="stat-total-expenses">₹0.00</h3>
+                            <span class="card-subtext">All purchases & costs</span>
+                        </div>
+                    </div>
+                    <div class="stat-card wishlist">
+                        <div class="card-icon"><i data-lucide="heart"></i></div>
+                        <div class="card-data">
+                            <span class="card-label">Wishlist Goal</span>
+                            <h3 id="stat-wishlist-count">0 Items</h3>
+                            <span class="card-subtext" id="stat-wishlist-affordable">0 Affordable</span>
+                        </div>
+                        <button class="action-btn accent-gold small get-wishlist-btn" id="get-wishlist-btn" title="Download wishlist report PDF / Print">
+                            <i data-lucide="file-down"></i> Wishlist PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Multi-Chart Analytics Grid -->
+                <div class="charts-grid-layout">
+                    <div class="dashboard-card chart-card">
+                        <div class="card-header">
+                            <h3>Earnings vs. Expenses Trend</h3>
+                            <div class="chart-filters">
+                                <button class="filter-btn active" id="chart-filter-all">All</button>
+                                <button class="filter-btn" id="chart-filter-active">Active</button>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="analytics-chart-bar"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-card chart-card">
+                        <div class="card-header">
+                            <h3>Net Balance Trend</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="analytics-chart-line"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card chart-card">
+                        <div class="card-header">
+                            <h3>Earnings vs. Expenses Ratio</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="analytics-chart-pie"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-bottom-grid">
+                    <!-- Daily Income Breakdown -->
+                    <div class="dashboard-card daily-income-card">
+                        <div class="card-header">
+                            <h3>Daily Income Breakdown</h3>
+                            <span class="card-subtext">Last 5 Active Days</span>
+                        </div>
+                        <div class="daily-income-table-wrapper">
+                            <table class="daily-income-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Completed Tasks</th>
+                                        <th style="text-align: right;">Total Earnings (₹)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="daily-income-tbody">
+                                    <!-- Loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Mini Wishlist / Upcoming Goals -->
+                    <div class="dashboard-card wishlist-preview-card">
+                        <div class="card-header">
+                            <h3>Wishlist Targets</h3>
+                            <button class="text-link" onclick="document.querySelector('[data-tab=\'wishlist\']').click()">View All</button>
+                        </div>
+                        <div class="wishlist-preview-list" id="mini-wishlist-list">
+                            <!-- Loaded dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Recent Purchases -->
+                    <div class="dashboard-card recent-purchases-card">
+                        <div class="card-header">
+                            <h3>Recent Purchases</h3>
+                            <span class="card-subtext">Wishlist Items Bought</span>
+                        </div>
+                        <div class="recent-purchases-list" id="mini-purchases-list">
+                            <!-- Loaded dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Actions & App Download -->
+                    <div class="dashboard-card quick-actions-card">
+                        <div class="card-header">
+                            <h3>Quick Actions</h3>
+                            <span class="card-subtext">Downloads & App</span>
+                        </div>
+                        <div class="quick-actions-grid" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                            <button class="action-btn accent full-width" onclick="document.getElementById('get-details-btn').click()">
+                                <i data-lucide="download"></i> Download Account Details
+                            </button>
+                            <button class="action-btn accent-gold full-width" onclick="document.getElementById('get-wishlist-btn').click()">
+                                <i data-lucide="heart"></i> Download Wishlist
+                            </button>
+                            <button class="action-btn install-app full-width" id="dashboard-install-btn" style="display: none;" onclick="document.getElementById('install-app-btn').click()">
+                                <i data-lucide="smartphone"></i> Download Android App / Desktop Shortcut
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Content: Tasks (Spreadsheet Style) -->
+            <section id="tab-tasks" class="tab-pane">
+                <div class="spreadsheet-container-layout">
+                    <!-- Presets to import -->
+                    <div class="dashboard-card presets-panel">
+                        <div class="card-header">
+                            <h3>Preset Templates</h3>
+                            <button class="action-btn small" id="new-preset-btn">
+                                <i data-lucide="plus"></i> Add Preset
+                            </button>
+                        </div>
+                        <p class="section-description">Click the insert icon to add a template row to your task grid.</p>
+                        <div class="presets-list" id="presets-container">
+                            <!-- Loaded dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Spreadsheet Grid -->
+                    <div class="dashboard-card grid-panel">
+                        <div class="card-header grid-header">
+                            <div>
+                                <h3>Tasks Spreadsheet Grid</h3>
+                                <p class="card-subtext">Manage current task records in rows. Changes auto-save.</p>
+                            </div>
+                            <div class="grid-controls">
+                                <button class="action-btn secondary small" id="add-row-btn">
+                                    <i data-lucide="plus"></i> Add Row
+                                </button>
+                                <button class="action-btn secondary small" id="clear-grid-btn">
+                                    <i data-lucide="rotate-ccw"></i> Clear Grid
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-container grid-table-wrapper">
+                            <table class="spreadsheet-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px; text-align: center;">Log</th>
+                                        <th>Task Description</th>
+                                        <th style="width: 150px;">Rate (₹)</th>
+                                        <th style="width: 150px;">Date & Time</th>
+                                        <th style="width: 80px; text-align: center;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="spreadsheet-tbody">
+                                    <!-- Loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="grid-total-row">
+                            <div class="total-calc-box">
+                                <button class="action-btn secondary" id="calculate-total-btn">
+                                    <i data-lucide="calculator"></i> Calculate Total
+                                </button>
+                                <div class="total-sum-display">
+                                    <span class="label">Total Checked (₹):</span>
+                                    <span class="value" id="grid-calculated-total">₹0.00</span>
+                                </div>
+                            </div>
+                            <button class="action-btn primary save-pulse" id="save-grid-tasks-btn">
+                                <i data-lucide="save"></i> Save &amp; Add to Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Content: Wishlist -->
+            <section id="tab-wishlist" class="tab-pane">
+                <div class="wishlist-layout">
+                    <div class="dashboard-card add-wishlist-section">
+                        <div class="card-header">
+                            <h3>Add Desired Item</h3>
+                        </div>
+                        <form id="wishlist-form" class="styled-form inline-form">
+                            <div class="form-group flex-2">
+                                <label for="wish-name">Item Name</label>
+                                <input type="text" id="wish-name" placeholder="E.g., Mechanical Keyboard" required>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label for="wish-cost">Cost (₹)</label>
+                                <input type="number" id="wish-cost" step="0.01" min="0.01" placeholder="1500.00" required>
+                            </div>
+                            <button type="submit" class="action-btn primary inline-btn">
+                                <i data-lucide="gift"></i> Add to Wishlist
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="wishlist-header-row">
+                        <h3>My Wishlist & Savings Goals</h3>
+                        <p class="info-tag">Items are compared against active account balance: <strong id="wishlist-active-balance-ref">₹0.00</strong></p>
+                    </div>
+
+                    <div class="wishlist-grid" id="wishlist-container">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Content: History -->
+            <section id="tab-history" class="tab-pane">
+                <div class="dashboard-card">
+                    <div class="card-header history-header">
+                        <div>
+                            <h3>Transaction History</h3>
+                            <p class="card-subtext">Double click on a row description or amount to edit details directly.</p>
+                        </div>
+                        <div class="history-controls">
+                            <div class="search-box">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="history-search" placeholder="Search notes...">
+                            </div>
+                            <select id="history-filter-type" class="styled-select-small">
+                                <option value="all">All Types</option>
+                                <option value="earning">Earnings Only</option>
+                                <option value="expense">Expenses Only</option>
+                            </select>
+                            <button class="action-btn secondary small" id="clear-all-history-btn" style="color: var(--accent-danger); border-color: rgba(244, 63, 94, 0.2);">
+                                <i data-lucide="trash"></i> Clear All History
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Account</th>
+                                    <th>Type</th>
+                                    <th>Details</th>
+                                    <th class="amount-col">Amount</th>
+                                    <th class="action-col">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Printable Containers (Hidden from screen view, visible to @media print) -->
+    <div id="print-area" class="print-only">
+        <!-- Dynamically loaded content for printing invoices/statements -->
+    </div>
+
+    <!-- Passcode Login Overlay (For locked accounts) -->
+    <div class="login-overlay" id="account-login-overlay">
+        <div class="login-card">
+            <div class="lock-icon">
+                <i data-lucide="lock"></i>
+            </div>
+            <h3 id="login-account-title">Unlock Account</h3>
+            <p class="card-subtext">This account is password-protected. Please enter your passcode to access.</p>
+            <form id="login-account-form" class="styled-form">
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                <div id="login-error-msg" class="error-msg" style="display: none; color: var(--accent-danger); font-size: 0.85rem; margin-top: 5px;">
+                    Incorrect password. Please try again.
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn text" id="login-cancel-btn">Cancel</button>
+                    <button type="submit" class="action-btn primary">Unlock Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Modal: Add Account (Compulsory password) -->
+    <div class="modal-backdrop" id="modal-account">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Password Protected Account</h3>
+                <button class="close-modal-btn" onclick="closeModal('modal-account')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="create-account-form" class="styled-form">
+                <div class="form-group">
+                    <label for="new-account-name">Account Name</label>
+                    <input type="text" id="new-account-name" placeholder="E.g., Business, Personal, Secret Savings" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-account-initial">Initial Balance (₹)</label>
+                    <input type="number" id="new-account-initial" step="0.01" min="0" value="0.00" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="new-account-password">Password (Compulsory)</label>
+                        <input type="password" id="new-account-password" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-account-confirm">Confirm Password</label>
+                        <input type="password" id="new-account-confirm" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn text" onclick="closeModal('modal-account')">Cancel</button>
+                    <button type="submit" class="action-btn primary">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Task Preset -->
+    <div class="modal-backdrop" id="modal-preset">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Task Preset</h3>
+                <button class="close-modal-btn" onclick="closeModal('modal-preset')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="create-preset-form" class="styled-form">
+                <div class="form-group">
+                    <label for="preset-name">Task Name</label>
+                    <input type="text" id="preset-name" placeholder="E.g., Article Writing, Code Review" required>
+                </div>
+                <div class="form-group">
+                    <label for="preset-default-amount">Default Payout Rate (₹)</label>
+                    <input type="number" id="preset-default-amount" step="0.01" min="0" placeholder="0.00" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn text" onclick="closeModal('modal-preset')">Cancel</button>
+                    <button type="submit" class="action-btn primary">Add Preset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Log Quick Expense -->
+    <div class="modal-backdrop" id="modal-quick-expense">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Expense / Cost</h3>
+                <button class="close-modal-btn" onclick="closeModal('modal-quick-expense')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="quick-expense-form" class="styled-form">
+                <div class="form-group">
+                    <label for="expense-name">Expense Name / Vendor</label>
+                    <input type="text" id="expense-name" placeholder="E.g., Coffee, Hosting Sub, Groceries" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="expense-amount">Amount (₹)</label>
+                        <input type="number" id="expense-amount" step="0.01" min="0.01" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expense-date">Date & Time <span class="card-subtext">(modify as needed)</span></label>
+                        <input type="datetime-local" id="expense-date" required>
+                    </div>
+                </div>
+                <p class="card-subtext" style="margin-top: -0.5rem;">💡 The date & time are set to now. You can change them to record past or future expenses.</p>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn text" onclick="closeModal('modal-quick-expense')">Cancel</button>
+                    <button type="submit" class="action-btn primary save-pulse">
+                        <i data-lucide="save"></i> Save & Debit Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Transaction -->
+    <div class="modal-backdrop" id="modal-edit-tx">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Transaction Record</h3>
+                <button class="close-modal-btn" onclick="closeModal('modal-edit-tx')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="edit-tx-form" class="styled-form">
+                <input type="hidden" id="edit-tx-id">
+                <div class="form-group">
+                    <label for="edit-tx-name">Transaction Name</label>
+                    <input type="text" id="edit-tx-name" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-tx-amount">Amount (₹)</label>
+                        <input type="number" id="edit-tx-amount" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-tx-date">Date & Time</label>
+                        <input type="datetime-local" id="edit-tx-date" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="edit-tx-notes">Notes / Details</label>
+                    <input type="text" id="edit-tx-notes">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn text" onclick="closeModal('modal-edit-tx')">Cancel</button>
+                    <button type="submit" class="action-btn primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Get Account Details Prompt (PDF/Print options) -->
+    <div class="modal-backdrop" id="modal-report-prompt">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Export Account Details</h3>
+                <button class="close-modal-btn" onclick="closeModal('modal-report-prompt')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="export-prompt-body">
+                <div class="export-prompt-icon">
+                    <i data-lucide="file-text"></i>
+                </div>
+                <h4>Yes! Would you like a .PDF file or a printout of your account?</h4>
+                <p class="card-subtext" style="margin-top: 8px;">This compiles a clean summary of all tasks you completed, amounts earned, expenses debited, and your current balance.</p>
+            </div>
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button type="button" class="action-btn text" onclick="closeModal('modal-report-prompt')">Cancel</button>
+                <button type="button" class="action-btn secondary" id="confirm-print-report-btn">
+                    <i data-lucide="printer"></i> Print Out
+                </button>
+                <button type="button" class="action-btn primary" id="confirm-pdf-report-btn">
+                    <i data-lucide="file-down"></i> Save as .PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Get Wishlist Details Prompt (PDF/Print options) -->
+    <div class="modal-backdrop" id="modal-wishlist-report-prompt">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Export Wishlist Report</h3>
+                <button class="close-modal-btn" onclick="closeModal('modal-wishlist-report-prompt')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="export-prompt-body">
+                <div class="export-prompt-icon wishlist-icon">
+                    <i data-lucide="heart"></i>
+                </div>
+                <h4>Download your wishlist report!</h4>
+                <p class="card-subtext" style="margin-top: 8px;">This compiles all your wishlist items, affordability status, and your current account balance in a clean printable format.</p>
+            </div>
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button type="button" class="action-btn text" onclick="closeModal('modal-wishlist-report-prompt')">Cancel</button>
+                <button type="button" class="action-btn secondary" id="confirm-print-wishlist-btn">
+                    <i data-lucide="printer"></i> Print Out
+                </button>
+                <button type="button" class="action-btn primary" id="confirm-pdf-wishlist-btn">
+                    <i data-lucide="file-down"></i> Save as .PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Wishlist Purchase Password Auth -->
+    <div class="modal-backdrop" id="modal-wishlist-auth">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Authorize Wishlist Purchase</h3>
+                <button class="close-modal-btn" onclick="closeModal('modal-wishlist-auth')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="wishlist-auth-form" class="styled-form">
+                <input type="hidden" id="auth-wishlist-item-id">
+                <div class="auth-item-preview">
+                    <div class="auth-item-icon"><i data-lucide="shopping-bag"></i></div>
+                    <div>
+                        <p class="auth-item-name" id="auth-wish-item-name">Item</p>
+                        <p class="auth-item-cost" id="auth-wish-item-cost">₹0.00</p>
+                    </div>
+                </div>
+                <p class="card-subtext" style="margin: 12px 0;">Enter your account password to authorize fund release for this purchase.</p>
+                <div class="form-group">
+                    <label for="wish-auth-password">Account Password</label>
+                    <input type="password" id="wish-auth-password" placeholder="••••••••" required autofocus>
+                </div>
+                <div id="wish-auth-error-msg" class="error-msg" style="display: none; color: var(--accent-danger); font-size: 0.85rem; margin-top: 5px;">
+                    ❌ Incorrect account password. Purchase unauthorized.
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn text" onclick="closeModal('modal-wishlist-auth')">Cancel</button>
+                    <button type="submit" class="action-btn primary"><i data-lucide="unlock"></i> Authorize &amp; Buy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Wishlist Purchase Output Choice (PDF/Print) -->
+    <div class="modal-backdrop" id="modal-purchase-output">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Purchase Confirmed! 🎉</h3>
+                <button class="close-modal-btn" onclick="closePurchaseOutput()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="purchase-success-banner">
+                <i data-lucide="check-circle"></i>
+                <div>
+                    <p id="purchase-confirm-item-name" style="font-weight:700; font-size: 1.1rem;">Item Purchased</p>
+                    <p id="purchase-confirm-balance" class="card-subtext">Remaining balance: ₹0.00</p>
+                </div>
+            </div>
+            <p style="margin: 1rem 0 0.5rem;">Your 2-page receipt is ready. How would you like to save it?</p>
+            <p class="card-subtext">Page 1: Account balance summary &nbsp;|&nbsp; Page 2: Wishlist — purchased item + remaining items & balance</p>
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button type="button" class="action-btn text" onclick="closePurchaseOutput()">Skip / Close</button>
+                <button type="button" class="action-btn secondary" id="purchase-print-btn">
+                    <i data-lucide="printer"></i> Print Receipt
+                </button>
+                <button type="button" class="action-btn primary" id="purchase-pdf-btn">
+                    <i data-lucide="file-down"></i> Save as PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Wrapper -->
+    <div id="toast-container" class="no-print"></div>
+
+    <!-- App Logic -->
+    <script src="app.js"></script>
+    <!-- Professional PDF Generator (depends on jsPDF loaded in head) -->
+    <script src="pdf-generator.js"></script>
+    <!-- Service Worker Registration for PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Visualsier SW registered:', reg.scope))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

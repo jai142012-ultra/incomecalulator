@@ -1,0 +1,11 @@
+{
+  "name": "visualsier",
+  "version": "1.0.0",
+  "description": "Smart Job Tracker & Financial Planner",
+  "scripts": {
+    "dev": "npx -y serve -l 3000 ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
